@@ -13,7 +13,7 @@ afterEach(() => vi.clearAllMocks());
 function fixture(settings: Record<string, boolean> = {}) {
   const config = {
     generalSettings: {
-      defaultProviderId: null, providerOrder: [], showKeyboardHints: true,
+      defaultProviderId: null as string | null, providerOrder: [] as string[], showKeyboardHints: true,
       showUnhandledProviderEvents: false, steerActiveThreadOnEnter: true, streamerMode: false,
     },
     experiments: { editMessages: false }, keybindingOverrides: [],
@@ -33,7 +33,7 @@ function fixture(settings: Record<string, boolean> = {}) {
   vi.mocked(readRemotePreset).mockResolvedValue({ snapshot: remote, head: "abc" });
   const host = createFakePluginHost({
     pluginId: "preset-sync",
-    settings: { repositoryUrl: "https://github.com/example/preset.git", ...settings },
+    settings: { repositoryUrl: "https://github.com/example/preset.git", includeSidebarNavigation: false, includeSidebarFooter: false, ...settings },
     sdk: {
       system: {
         config: async () => config,

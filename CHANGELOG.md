@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.2-local.1
+
+- Retry temporary Git clone directory removal when Windows reports transient
+  file locks, including empty-repository initialization and final cleanup.
+
+## 0.4.1-local.1
+
+- Synchronize sidebar footer order and hidden actions with an independent
+  enabled-by-default selection, directional previews, and revision checks.
+- Preserve the local footer when an older preset omits this category.
+
+## 0.4.0-local.1
+
+- Synchronize sidebar navigation order and shown/hidden destinations through
+  server UI preferences, with an independent enabled-by-default selection.
+- Include navigation changes in directional previews and preserve local values
+  when an older preset omits the category.
+- Check local preference revisions when pulling and report concurrent edits.
+- Target Plugin SDK 0.6.132 and use its navigation badge API for sync indicators.
+
 ## 0.3.1-local.1
 
 - Resolve Windows npm shims to Node and npm-cli.js directly, including NVM and

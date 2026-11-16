@@ -3,6 +3,15 @@
 import { describe, expect, it } from "vitest";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import { waitFor } from "@testing-library/react";
+import { createElement } from "react";
+import type { ExperimentalBadge } from "@get-bb/plugin-sdk/app";
+
+function badgeProbe(useBadge: () => ExperimentalBadge | null) {
+  return function BadgeProbe() {
+    const badge = useBadge();
+    return badge === null ? null : createElement("output", { "aria-label": badge.label }, badge.text);
+  };
+}
 import type { SyncStatus } from "../lib/preset";
 
 describe("plugin app registration", { timeout: 15_000 }, () => {
@@ -20,7 +29,7 @@ describe("plugin app registration", { timeout: 15_000 }, () => {
         path: "preset-sync",
       }),
     ]);
-    expect(app.navPanels[0]?.experimental_sidebarAccessory).toBeTypeOf("function");
+    expect(app.navPanels[0]?.experimental_useBadge).toBeTypeOf("function");
   });
 
   it("shows directional actions and the exact remote and local changes", async () => {
@@ -83,10 +92,10 @@ describe("plugin app registration", { timeout: 15_000 }, () => {
     expect(slot.getByRole("button", { name: /Push local/i })).toBeTruthy();
     slot.lifecycle.unmount();
 
-    const accessory = app.navPanels[0]?.experimental_sidebarAccessory;
+    const accessory = app.navPanels[0]?.experimental_useBadge;
     if (accessory === undefined) throw new Error("Sidebar accessory is missing");
     const indicator = renderSlot(
-      { component: accessory },
+      { component: badgeProbe(accessory) },
       {},
       {
         settings: { repositoryUrl: status.repository },
@@ -100,16 +109,17 @@ describe("plugin app registration", { timeout: 15_000 }, () => {
       },
     );
     expect(await indicator.findByText("↓1 ↑1")).toBeTruthy();
+    expect(indicator.getByRole("status").getAttribute("aria-label")).toContain("1 remote and 1 local preset changes");
     indicator.lifecycle.unmount();
   });
 
   it("renders no sidebar indicator while both sides match", async () => {
     const app = await loadPluginApp(() => import("../app"));
-    const accessory = app.navPanels[0]?.experimental_sidebarAccessory;
+    const accessory = app.navPanels[0]?.experimental_useBadge;
     if (accessory === undefined) throw new Error("Sidebar accessory is missing");
     const repository = "https://github.com/example/preset.git";
     const indicator = renderSlot(
-      { component: accessory },
+      { component: badgeProbe(accessory) },
       {},
       {
         settings: { repositoryUrl: repository },

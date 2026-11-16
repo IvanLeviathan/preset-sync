@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import fs from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,10 +11,24 @@ import Database from "better-sqlite3";
 import { captureLocalPlugin, LocalSourceStore } from "../lib/local-plugins";
 
 const execFileAsync = promisify(execFile);
+const { prepareRemoval } = vi.hoisted(() => ({ prepareRemoval: vi.fn<(path: string) => Promise<void>>() }));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    rm: async (...args: Parameters<typeof actual.rm>) => {
+      await prepareRemoval(String(args[0]));
+      return actual.rm(...args);
+    },
+  };
+});
 
 const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
+  vi.restoreAllMocks();
+  prepareRemoval.mockReset();
   vi.unstubAllEnvs();
   await Promise.all(
     temporaryDirectories.splice(0).map((directory) =>
@@ -23,6 +38,46 @@ afterEach(async () => {
 });
 
 describe("preset repository initialization", () => {
+  it("recovers from temporary Windows locks during clone fallback and final cleanup", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "preset-locked-git-"));
+    temporaryDirectories.push(directory);
+    await execFileAsync("git", ["init", "--bare", join(directory, "remote.git")]);
+    vi.stubEnv("GIT_CONFIG_COUNT", "2");
+    vi.stubEnv("GIT_CONFIG_KEY_0", `url.file://${directory}/.insteadOf`);
+    vi.stubEnv("GIT_CONFIG_VALUE_0", "https://preset-sync.test/");
+    vi.stubEnv("GIT_CONFIG_KEY_1", "protocol.file.allow");
+    vi.stubEnv("GIT_CONFIG_VALUE_1", "always");
+
+    // Git normally deletes a failed clone. Model a leftover directory so the
+    // empty-repository fallback also has a real directory to remove.
+    prepareRemoval.mockImplementation(async (path) => {
+      if (basename(path) === "repo" && path.includes("bb-preset-sync-")) {
+        await mkdir(path, { recursive: true });
+      }
+    });
+    const rmdir = fs.rmdir;
+    const lockedPaths = new Map<string, string>();
+    // Keep Node's real recursive removal and retry logic; inject only the OS error.
+    vi.spyOn(fs, "rmdir").mockImplementation((path, options, callback) => {
+      const candidate = path.toString();
+      const target = basename(candidate) === "repo" && candidate.includes("bb-preset-sync-")
+        ? "repo"
+        : basename(candidate).startsWith("bb-preset-sync-") ? "root" : undefined;
+      if (target !== undefined && !lockedPaths.has(target)) {
+        lockedPaths.set(target, candidate);
+        const done = typeof options === "function" ? options : callback;
+        process.nextTick(done, Object.assign(new Error("resource busy or locked"), { code: "EBUSY" }));
+        return;
+      }
+      return rmdir(path, options, callback);
+    });
+
+    const result = await readRemotePreset({ repositoryUrl: "https://preset-sync.test/remote.git", branch: "main" });
+    expect(result.head).toBe("");
+    expect([...lockedPaths.keys()].sort()).toEqual(["repo", "root"]);
+    for (const lockedPath of lockedPaths.values()) expect(fs.existsSync(lockedPath)).toBe(false);
+  });
+
   it("transfers bundled source trees and bootstrap through Git to a fresh source store", async () => {
     const directory=await mkdtemp(join(tmpdir(),"preset-source-git-"));temporaryDirectories.push(directory);
     await execFileAsync("git",["init","--bare",join(directory,"remote.git")]);

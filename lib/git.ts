@@ -17,6 +17,13 @@ import {
 const execFileAsync = promisify(execFile);
 const MAX_GIT_OUTPUT_BYTES = 4 * 1024 * 1024;
 const GIT_TIMEOUT_MS = 60_000;
+// Windows may briefly retain Git or scanner handles after a command exits.
+const CLONE_CLEANUP_OPTIONS = {
+  recursive: true,
+  force: true,
+  maxRetries: 5,
+  retryDelay: 200,
+};
 
 export interface GitRepositoryOptions {
   repositoryUrl: string;
@@ -142,13 +149,13 @@ async function withClone<T>(
       if (options.signal?.aborted) throw cause;
       const refs = await runGit(["ls-remote", repositoryUrl], options);
       if (refs !== "") throw cause;
-      await rm(repoDir, { recursive: true, force: true });
+      await rm(repoDir, CLONE_CLEANUP_OPTIONS);
       await runGit(["clone", "--quiet", repositoryUrl, repoDir], options);
       await runGit(["symbolic-ref", "HEAD", `refs/heads/${branch}`], { ...options, cwd: repoDir });
     }
     return await operation(repoDir);
   } finally {
-    await rm(tempRoot, { recursive: true, force: true });
+    await rm(tempRoot, CLONE_CLEANUP_OPTIONS);
   }
 }
 

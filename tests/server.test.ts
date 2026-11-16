@@ -12,7 +12,7 @@ function createHost(
 ) {
   return createFakePluginHost({
     pluginId: "preset-sync",
-    settings,
+    settings: { includeSidebarNavigation: false, includeSidebarFooter: false, ...settings },
     sdk: {
       system: {
         config: async () => ({

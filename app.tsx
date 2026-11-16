@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { definePluginApp, useRealtime, useRpc, useSettings } from "@get-bb/plugin-sdk/app";
+import { definePluginApp, useRealtime, useRpc, useSettings, type ExperimentalBadge } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
 import type {
   ApplyResult,
@@ -497,7 +497,7 @@ function PresetSyncPage() {
   );
 }
 
-function PresetSyncSidebarAccessory() {
+function usePresetSyncBadge(): ExperimentalBadge | null {
   const rpc = useRpc<typeof rpcContract>();
   const pluginSettings = useSettings();
   const [check, setCheck] = useState<CachedSyncCheck | null>(null);
@@ -523,15 +523,11 @@ function PresetSyncSidebarAccessory() {
 
   if (repository === "" || check === null) return null;
   if (check.error !== null) {
-    return (
-      <span
-        className="text-xs font-semibold text-destructive"
-        title={`Preset Sync check failed: ${check.error}`}
-        aria-label="Preset Sync background check failed"
-      >
-        !
-      </span>
-    );
+    return {
+      text: "!",
+      tone: "critical",
+      label: `Preset Sync background check failed: ${check.error}`,
+    };
   }
   const status = check.status;
   if (
@@ -551,15 +547,10 @@ function PresetSyncSidebarAccessory() {
     ...status.pullChanges.map((change) => `↓ ${change.summary}`),
     ...status.pushChanges.map((change) => `↑ ${change.summary}`),
   ].join("\n");
-  return (
-    <span
-      className="inline-flex max-w-16 items-center whitespace-nowrap text-[11px] font-semibold text-foreground"
-      title={details}
-      aria-label={`${status.changeCount} remote and ${status.pushChangeCount} local preset changes`}
-    >
-      {label}
-    </span>
-  );
+  return {
+    text: label.length <= 8 ? label : "Changes",
+    label: `${status.changeCount} remote and ${status.pushChangeCount} local preset changes\n${details}`,
+  };
 }
 
 export default definePluginApp((app) => {
@@ -575,6 +566,6 @@ export default definePluginApp((app) => {
     icon: "Cloud",
     path: "preset-sync",
     component: PresetSyncPage,
-    experimental_sidebarAccessory: PresetSyncSidebarAccessory,
+    experimental_useBadge: usePresetSyncBadge,
   });
 });

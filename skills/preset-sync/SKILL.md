@@ -10,9 +10,13 @@ confirmed pull change external or local configuration, so use them when requeste
 `bb preset pull --yes` applies the current remote preset, including full-trust plugin code.
 
 Settings under Settings → Plugins → Preset Sync select general preferences,
-appearance, shortcuts, experiments, non-secret plugin settings, and local plugin
+appearance, sidebar navigation and footer order and visibility, shortcuts, experiments, non-secret plugin settings, and local plugin
 source code. Disabled categories preserve local values during pull and existing
 repository values during push. Capture again after enabling an unstaged category.
+Sidebar navigation uses server UI preferences and applies to Rail and Top list.
+Footer order and hidden actions have an independent Sync sidebar footer toggle.
+Old presets without navigation or footer categories preserve their local values. Both machines need this plugin version
+and a host supporting Plugin SDK 0.6.132 or newer; preference conflicts are pull errors.
 
 Local source files live in Git under `preset/local-plugins/<id>`. Pull requires
 npm on the receiving machine, disables dependency lifecycle scripts, and installs

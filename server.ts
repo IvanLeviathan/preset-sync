@@ -131,10 +131,22 @@ export default async function plugin(bb: BbPluginApi) {
       description: "Sync keyboard shortcut overrides in both directions.",
       default: true,
     },
+    includeSidebarNavigation: {
+      type: "boolean",
+      label: "Sync sidebar navigation",
+      description: "Sync the order and shown or hidden sidebar navigation destinations in both directions.",
+      default: true,
+    },
     includeExperiments: {
       type: "boolean",
       label: "Sync experiments",
       description: "Sync experimental feature flags in both directions.",
+      default: true,
+    },
+    includeSidebarFooter: {
+      type: "boolean",
+      label: "Sync sidebar footer",
+      description: "Sync the order and shown or hidden sidebar footer actions in both directions.",
       default: true,
     },
     includePluginSettings: {
@@ -165,6 +177,8 @@ export default async function plugin(bb: BbPluginApi) {
       includePluginSettings: value.includePluginSettings,
       includeGeneralSettings: value.includeGeneralSettings,
       includeAppearance: value.includeAppearance,
+      includeSidebarNavigation: value.includeSidebarNavigation,
+      includeSidebarFooter: value.includeSidebarFooter,
       includeKeybindings: value.includeKeybindings,
       includeExperiments: value.includeExperiments,
       includeLocalPlugins: value.includeLocalPlugins,

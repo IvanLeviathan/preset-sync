@@ -56,6 +56,18 @@ export const settingsPresetSchema = z
         faviconColor: faviconColorSchema,
       })
       .strict(),
+    sidebarNavigation: z
+      .object({
+        order: z.array(z.string().min(1).max(1024)).max(10000),
+        visible: z.array(z.string().min(1).max(1024)).max(10000).nullable(),
+      })
+      .strict(),
+    sidebarFooter: z
+      .object({
+        order: z.array(z.string().min(1).max(1024)).max(10000),
+        hidden: z.array(z.string().min(1).max(1024)).max(10000),
+      })
+      .strict(),
   })
   .partial()
   .strict();
@@ -135,6 +147,8 @@ export const planChangeSchema = z
       "experiments",
       "keybindings",
       "appearance",
+      "sidebar-navigation",
+      "sidebar-footer",
       "metadata",
     ]),
     action: z.enum(["add", "remove", "install", "enable", "disable", "update"]),
@@ -417,6 +431,8 @@ export async function readPresetSnapshot(repoDir: string, sources?: LocalSourceS
         experiments: settings.experiments,
         keybindingOverrides: settings.keybindingOverrides,
         appearance: settings.appearance,
+        sidebarNavigation: settings.sidebarNavigation,
+        sidebarFooter: settings.sidebarFooter,
       },
       plugins: plugins.plugins,
       marketplaces: marketplaces.marketplaces,
@@ -730,6 +746,26 @@ export function buildPullPlan(args: {
     });
   }
 
+  if (remote.settings.sidebarNavigation !== undefined && !sameJson(local.settings.sidebarNavigation, remote.settings.sidebarNavigation)) {
+    changes.push({
+      kind: "sidebar-navigation",
+      action: "update",
+      target: "Sidebar navigation",
+      summary: "Update sidebar navigation order and visibility",
+      risk: "configuration",
+    });
+  }
+
+  if (remote.settings.sidebarFooter !== undefined && !sameJson(local.settings.sidebarFooter, remote.settings.sidebarFooter)) {
+    changes.push({
+      kind: "sidebar-footer",
+      action: "update",
+      target: "Sidebar footer",
+      summary: "Update sidebar footer order and visibility",
+      risk: "configuration",
+    });
+  }
+
   if (remote.bbVersion !== "unknown" && remote.bbVersion !== local.bbVersion) {
     warnings.push(
       `Preset was captured with BB ${remote.bbVersion}; this machine runs BB ${local.bbVersion}.`,
@@ -915,6 +951,24 @@ export function buildPushChanges(
       action: "update",
       target: "Theme",
       summary: `Record theme ${local.settings.appearance.themeId} in the preset`,
+      risk: "configuration",
+    });
+  }
+  if (local.settings.sidebarNavigation !== undefined && !sameJson(local.settings.sidebarNavigation, remote.settings.sidebarNavigation)) {
+    changes.push({
+      kind: "sidebar-navigation",
+      action: "update",
+      target: "Sidebar navigation",
+      summary: "Update sidebar navigation order and visibility in the preset",
+      risk: "configuration",
+    });
+  }
+  if (local.settings.sidebarFooter !== undefined && !sameJson(local.settings.sidebarFooter, remote.settings.sidebarFooter)) {
+    changes.push({
+      kind: "sidebar-footer",
+      action: "update",
+      target: "Sidebar footer",
+      summary: "Update sidebar footer order and visibility in the preset",
       risk: "configuration",
     });
   }

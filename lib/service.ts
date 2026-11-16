@@ -34,6 +34,8 @@ export interface SyncSettings {
   includeExperiments?: boolean;
   includeKeybindings?: boolean;
   includeAppearance?: boolean;
+  includeSidebarNavigation?: boolean;
+  includeSidebarFooter?: boolean;
   includeLocalPlugins?: boolean;
   backgroundCheckInterval: string;
 }
@@ -43,6 +45,8 @@ interface CapturedPreset {
   warnings: string[];
   pluginSettingsIncluded?: boolean;
   localPluginsIncluded?: boolean;
+  sidebarNavigationRevisions?: { order: number; visible: number };
+  sidebarFooterRevisions?: { order: number; hidden: number };
 }
 
 interface StagedPreset extends CapturedPreset {
@@ -64,6 +68,8 @@ function selectSnapshot(snapshot: PresetSnapshot, selection: SyncSettings): Pres
   if (selection.includeExperiments === false) delete settings.experiments;
   if (selection.includeKeybindings === false) delete settings.keybindingOverrides;
   if (selection.includeAppearance === false) delete settings.appearance;
+  if (selection.includeSidebarNavigation === false) delete settings.sidebarNavigation;
+  if (selection.includeSidebarFooter === false) delete settings.sidebarFooter;
   return {
     ...snapshot,
     settings,
@@ -242,13 +248,16 @@ export class PresetSyncService {
   }
 
   private async captureSnapshot(signal?: AbortSignal): Promise<CapturedPreset> {
-    const [config, pluginList, marketplaces, version] = await Promise.all([
+    const settings = await this.getSettings();
+    const [config, pluginList, marketplaces, version, uiPreferences] = await Promise.all([
       this.bb.sdk.system.config({ signal }),
       this.bb.sdk.plugins.list({ signal }),
       this.bb.sdk.plugins.marketplaces.list({ signal }),
       this.bb.sdk.system.version({ force: false, signal }),
+      settings.includeSidebarNavigation === false && settings.includeSidebarFooter === false
+        ? undefined
+        : this.bb.sdk.system.uiPreferences.list({ signal }),
     ]);
-    const settings = await this.getSettings();
     const warnings: string[] = [];
 
     const plugins: PresetSnapshot["plugins"] = [];
@@ -352,6 +361,14 @@ export class PresetSyncService {
           themeId: config.appearance.themeId,
           faviconColor: config.appearance.faviconColor,
         },
+        sidebarNavigation: uiPreferences === undefined || settings.includeSidebarNavigation === false ? undefined : {
+          order: uiPreferences.preferences["sidebar.pluginPanelOrder"].value,
+          visible: uiPreferences.preferences["sidebar.visiblePluginPanels"].value,
+        },
+        sidebarFooter: uiPreferences === undefined || settings.includeSidebarFooter === false ? undefined : {
+          order: uiPreferences.preferences["sidebar.footerOrder"].value,
+          hidden: uiPreferences.preferences["sidebar.hiddenFooterItems"].value,
+        },
       },
       plugins,
       marketplaces: portableMarketplaces,
@@ -363,6 +380,14 @@ export class PresetSyncService {
       warnings: unique(warnings),
       pluginSettingsIncluded: settings.includePluginSettings,
       localPluginsIncluded: settings.includeLocalPlugins !== false,
+      sidebarNavigationRevisions: uiPreferences === undefined || settings.includeSidebarNavigation === false ? undefined : {
+        order: uiPreferences.preferences["sidebar.pluginPanelOrder"].revision,
+        visible: uiPreferences.preferences["sidebar.visiblePluginPanels"].revision,
+      },
+      sidebarFooterRevisions: uiPreferences === undefined || settings.includeSidebarFooter === false ? undefined : {
+        order: uiPreferences.preferences["sidebar.footerOrder"].revision,
+        hidden: uiPreferences.preferences["sidebar.hiddenFooterItems"].revision,
+      },
     };
   }
 
@@ -769,6 +794,42 @@ export class PresetSyncService {
         await attempt("Updated BB theme", () =>
           this.bb.sdk.theme.set(appearance),
         );
+      }
+
+      const sidebarNavigation = remote.snapshot.settings.sidebarNavigation;
+      const localNavigation = local.snapshot.settings.sidebarNavigation;
+      const navigationRevisions = local.sidebarNavigationRevisions;
+      if (sidebarNavigation !== undefined && localNavigation !== undefined && navigationRevisions !== undefined) {
+        for (const field of ["order", "visible"] as const) {
+          if (sameJson(localNavigation[field], sidebarNavigation[field])) continue;
+          const key = field === "order" ? "sidebar.pluginPanelOrder" : "sidebar.visiblePluginPanels";
+          const label = field === "order" ? "order" : "visibility";
+          await attempt(`Updated sidebar navigation ${label}`, () =>
+            this.bb.sdk.system.uiPreferences.set({
+              key,
+              expectedRevision: navigationRevisions[field],
+              value: sidebarNavigation[field],
+            }),
+          );
+        }
+      }
+
+      const sidebarFooter = remote.snapshot.settings.sidebarFooter;
+      const localFooter = local.snapshot.settings.sidebarFooter;
+      const footerRevisions = local.sidebarFooterRevisions;
+      if (sidebarFooter !== undefined && localFooter !== undefined && footerRevisions !== undefined) {
+        for (const field of ["order", "hidden"] as const) {
+          if (sameJson(localFooter[field], sidebarFooter[field])) continue;
+          const key = field === "order" ? "sidebar.footerOrder" : "sidebar.hiddenFooterItems";
+          const label = field === "order" ? "order" : "visibility";
+          await attempt(`Updated sidebar footer ${label}`, () =>
+            this.bb.sdk.system.uiPreferences.set({
+              key,
+              expectedRevision: footerRevisions[field],
+              value: sidebarFooter[field],
+            }),
+          );
+        }
       }
 
       const at = new Date().toISOString();

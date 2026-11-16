@@ -18,7 +18,7 @@ async function fixture(includeLocalPlugins=true,id="demo") {
   await writeFile(join(root,"package.json"),JSON.stringify({name:`bb-plugin-${id}`,bb:{server:"./server.ts"}}));
   await writeFile(join(root,"server.ts"),"export default function original() {}\n");
   const source=await captureLocalPlugin(id,root);
-  const host=createFakePluginHost({pluginId:"preset-sync",settings:{repositoryUrl:"https://example.test/preset.git",includeLocalPlugins},sdk:{
+  const host=createFakePluginHost({pluginId:"preset-sync",settings:{repositoryUrl:"https://example.test/preset.git",includeLocalPlugins,includeSidebarNavigation:false,includeSidebarFooter:false},sdk:{
     system:{config:async()=>({generalSettings:{defaultProviderId:null,providerOrder:[],showKeyboardHints:true,showUnhandledProviderEvents:false,steerActiveThreadOnEnter:true,streamerMode:false},experiments:{},keybindingOverrides:[],appearance:{themeId:"default",faviconColor:"default"}}),version:async()=>({currentVersion:"0.41.0"})},
     plugins:{list:async()=>({plugins:[{id,source:`path:${root}`,rootDir:root,enabled:true,hasSettings:false}]}),marketplaces:{list:async()=>[]}},
   }});

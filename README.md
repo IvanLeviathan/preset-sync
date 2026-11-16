@@ -57,9 +57,10 @@ bb preset pull --yes
 additive: locally installed plugins that are absent from the preset are kept.
 
 The sidebar indicator stays hidden while the local and remote presets match.
-When they differ it shows `↓` for changes available from the remote preset and
-`↑` for local changes available to push. Open Preset Sync to review every
-change and choose a direction.
+When they differ, Top list navigation shows `↓` for changes available from the
+remote preset and `↑` for local changes available to push. Rail navigation shows
+a dot; its tooltip contains the counts and changes. Open Preset Sync to review
+every change and choose a direction.
 
 Background comparisons run every five minutes by default. Change
 **Background check interval** under **Settings → Plugins → Preset Sync** to
@@ -69,7 +70,7 @@ pushes automatically.
 ## Choose settings to synchronize
 
 Under **Settings → Plugins → Preset Sync**, enable or disable **Sync general
-settings**, **Sync appearance**, **Sync keyboard shortcuts**, **Sync experiments**,
+settings**, **Sync appearance**, **Sync sidebar navigation**, **Sync sidebar footer**, **Sync keyboard shortcuts**, **Sync experiments**,
 and **Sync non-secret plugin settings**. All categories are enabled by default.
 
 Disabled categories are omitted from new captures and pull previews. Pull keeps
@@ -81,6 +82,20 @@ The current selection also filters previously staged captures before push. Run
 **Stage current** again after enabling a category that was absent from the stage.
 Unknown BB general settings, including machine access and server configuration,
 are never captured.
+
+**Sync sidebar navigation** transfers the order and shown/hidden destinations
+in the sidebar, including built-in destinations. It applies to both Rail and
+Top list navigation. A preset without this category leaves the sidebar unchanged.
+The `null` visibility value means show all destinations; an empty list means
+move all destinations into More. UI preference revisions stay on each machine;
+concurrent edits are reported as pull errors. Both machines need this version
+of Preset Sync and a BB host with Plugin SDK 0.6.132 or newer.
+
+**Sync sidebar footer** separately transfers the order and hidden footer actions
+(`sidebar.footerOrder` and `sidebar.hiddenFooterItems`). Empty order uses the host
+default order; an empty hidden list shows every available footer action. Old
+presets without this category keep the local footer. Pull checks capture-time
+revisions and reports each successful write separately if another write fails.
 
 An empty Git repository is supported: preview shows the initial local changes,
 and **Capture & push** creates the configured branch and preset files. A missing
@@ -166,6 +181,8 @@ after staging without local sources requires a fresh capture to publish code.
 - general BB settings and experiment flags;
 - keyboard shortcut overrides;
 - selected theme and favicon color;
+- sidebar navigation order and visibility;
+- sidebar footer action order and visibility;
 - non-secret plugin settings that pass additional safety checks.
 - portable local plugin sources and a Preset Sync bootstrap copy.
 
